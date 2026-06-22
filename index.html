@@ -1,0 +1,208 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#08090d">
+  <meta name="description" content="Beautify, minify, validate and inspect JSON with syntax highlighting â€” a fast, private, offline JSON formatter.">
+  <title>JSON Formatter â€” Web Utility Suite</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <header class="topbar container">
+    <a class="brand" href="https://github.com/kasapdev/web-utility-suite" aria-label="Back to Web Utility Suite">
+      <span class="logo" aria-hidden="true">
+        <!-- braces / code icon -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 3H7a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h1"/>
+          <path d="M16 3h1a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2 2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-1"/>
+        </svg>
+      </span>
+      <span class="col" style="gap:0">
+        <span>JSON Formatter</span>
+        <span class="sub">Web Utility Suite</span>
+      </span>
+    </a>
+    <span class="spacer"></span>
+
+    <span id="statusBadge" class="badge" role="status" aria-live="polite" title="Validation status">
+      <span class="status-dot" aria-hidden="true"></span><span id="statusText">Ready</span>
+    </span>
+
+    <button class="btn btn--icon" data-shortcut-help title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="2" y="4" width="20" height="16" rx="2"/>
+        <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M7 16h10"/>
+      </svg>
+    </button>
+    <button class="btn btn--icon" data-theme-toggle title="Toggle theme" aria-label="Toggle theme">
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="4"/>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+      </svg>
+    </button>
+  </header>
+
+  <main class="container">
+    <!-- Toolbar -->
+    <section class="panel toolbar-panel fade-in" aria-label="Toolbar">
+      <div class="toolbar">
+        <div class="toolbar-group">
+          <button id="btnBeautify" class="btn btn--primary" title="Beautify (Ctrl/Cmd+B)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M3 12h12M3 18h18"/></svg>
+            Beautify
+          </button>
+          <button id="btnMinify" class="btn" title="Minify (Ctrl/Cmd+M)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg>
+            Minify
+          </button>
+          <button id="btnValidate" class="btn" title="Validate JSON">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+            Validate
+          </button>
+        </div>
+
+        <div class="toolbar-group">
+          <div class="field-inline">
+            <label for="indentSelect">Indent</label>
+            <select id="indentSelect" aria-label="Indentation style">
+              <option value="2">2 spaces</option>
+              <option value="4">4 spaces</option>
+              <option value="tab">Tabs</option>
+            </select>
+          </div>
+          <label class="check sortKeys-check" title="Recursively sort object keys when beautifying">
+            <span class="switch">
+              <input type="checkbox" id="sortKeys" aria-label="Sort object keys alphabetically">
+              <span class="track"></span><span class="thumb"></span>
+            </span>
+            <span class="secondary">Sort keys</span>
+          </label>
+        </div>
+
+        <span class="spacer hide-sm"></span>
+
+        <div class="toolbar-group">
+          <button id="btnCopy" class="btn btn--sm" title="Copy output">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Copy
+          </button>
+          <button id="btnDownload" class="btn btn--sm" title="Download .json (Ctrl/Cmd+S)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            Download
+          </button>
+          <button id="btnUpload" class="btn btn--sm" title="Upload a .json file">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+            Upload
+          </button>
+          <input type="file" id="fileInput" accept=".json,application/json,text/plain" hidden>
+          <button id="btnSample" class="btn btn--sm btn--ghost" title="Load a sample document">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>
+            Sample
+          </button>
+          <button id="btnClear" class="btn btn--sm btn--ghost" title="Clear everything">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+            Clear
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Two-pane editor -->
+    <section class="editor rise" aria-label="JSON editor">
+      <!-- Input pane -->
+      <div class="pane panel pane--input">
+        <div class="pane-head">
+          <h2 class="pane-title">Input</h2>
+          <span id="inputStats" class="muted pane-meta mono">0 chars</span>
+        </div>
+        <textarea id="input" class="mono" spellcheck="false" autocapitalize="off" autocomplete="off"
+          aria-label="JSON input"
+          placeholder='Paste or type JSON hereâ€¦  e.g. {"hello":"world"}'></textarea>
+      </div>
+
+      <!-- Output pane -->
+      <div class="pane panel pane--output">
+        <div class="pane-head">
+          <h2 class="pane-title">Output</h2>
+          <span id="outputStats" class="muted pane-meta mono"></span>
+        </div>
+
+        <div class="output-scroll">
+          <pre id="output" class="output-code mono" aria-live="polite" tabindex="0"><code id="outputCode"></code></pre>
+
+          <!-- Empty state -->
+          <div id="emptyState" class="empty output-empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M8 3H7a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h1"/>
+              <path d="M16 3h1a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2 2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-1"/>
+            </svg>
+            <p>Your formatted JSON will appear here.</p>
+            <button id="btnSampleEmpty" class="btn btn--sm">Load a sample</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Error panel -->
+    <section id="errorPanel" class="panel error-panel fade-in" role="alert" hidden>
+      <div class="error-head">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+        <strong>Invalid JSON</strong>
+        <span id="errorLoc" class="badge badge--danger mono"></span>
+      </div>
+      <p id="errorMsg" class="error-msg mono"></p>
+      <pre id="errorContext" class="error-context mono" aria-hidden="true"></pre>
+    </section>
+
+    <!-- Stats bar -->
+    <section id="statsBar" class="panel stats-bar fade-in" aria-label="Document statistics" hidden>
+      <div class="stat">
+        <span class="stat-label">Size</span>
+        <span id="statSize" class="stat-value gradient-text">â€”</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Keys</span>
+        <span id="statKeys" class="stat-value">â€”</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Values</span>
+        <span id="statValues" class="stat-value">â€”</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Max depth</span>
+        <span id="statDepth" class="stat-value">â€”</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Root type</span>
+        <span id="statType" class="stat-value">â€”</span>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer container">
+    Part of the <a href="https://github.com/kasapdev/web-utility-suite">Web Utility Suite</a> Â· MIT Licensed
+  </footer>
+
+  <!-- Shortcuts help modal -->
+  <div id="helpBackdrop" class="modal-backdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+      <div class="row between center" style="margin-bottom:var(--space-4)">
+        <h3 id="helpTitle" style="margin:0">Keyboard shortcuts</h3>
+        <button id="helpClose" class="btn btn--icon btn--ghost" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <table class="shortcut-table">
+        <tbody id="shortcutRows"></tbody>
+      </table>
+      <p class="muted" style="margin:var(--space-4) 0 0;font-size:13px">Tip: <kbd>mod</kbd> means <kbd>Ctrl</kbd> on Windows/Linux and <kbd>âŒ˜</kbd> on macOS.</p>
+    </div>
+  </div>
+
+  <script src="assets/js/core.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
