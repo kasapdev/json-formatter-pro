@@ -38,6 +38,10 @@
 
   /* The most recently produced output string (for copy / download). */
   var lastOutput = '';
+  /* Which action last produced lastOutput ('beautify' | 'minify'), so that
+     changing Indent/Sort-keys re-applies the same mode instead of always
+     jumping back to the pretty-printed view. */
+  var lastMode = 'beautify';
 
   /* =================================================================
      INDENT helpers
@@ -304,6 +308,7 @@
       clearError();
       renderOutput(pretty, value);
       setStatus('valid', 'Valid JSON');
+      lastMode = 'beautify';
     } catch (err) {
       showError(err, input.value);
       WUS.toast('Invalid JSON — see error panel', 'error');
@@ -321,6 +326,7 @@
       clearError();
       renderOutput(min, value);
       setStatus('valid', 'Minified');
+      lastMode = 'minify';
     } catch (err) {
       showError(err, input.value);
       WUS.toast('Invalid JSON — see error panel', 'error');
@@ -460,6 +466,7 @@
         if (sortKeysEl.checked) value = sortKeysDeep(value);
         renderOutput(JSON.stringify(value, null, currentIndent()), value);
         setStatus('valid', 'Valid JSON');
+        lastMode = 'beautify';
       } catch (e) { /* leave output empty; user can act */ }
     }
   }
@@ -523,13 +530,15 @@
   });
 
   // Re-format live when settings change (only if there is valid output).
+  // Re-apply whichever mode last produced the output, so toggling Sort keys
+  // while viewing minified JSON doesn't silently switch to pretty-printed.
   indentSelect.addEventListener('change', function () {
     persist();
-    if (lastOutput && input.value.trim()) beautify();
+    if (lastOutput && input.value.trim()) (lastMode === 'minify' ? minify : beautify)();
   });
   sortKeysEl.addEventListener('change', function () {
     persist();
-    if (lastOutput && input.value.trim()) beautify();
+    if (lastOutput && input.value.trim()) (lastMode === 'minify' ? minify : beautify)();
   });
 
   // Ctrl/Cmd+Enter inside the textarea = beautify.
