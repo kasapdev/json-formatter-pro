@@ -17,6 +17,7 @@ JSON Formatter Pro is part of the **Web Utility Suite**. It runs entirely in the
 - **Minify** to the most compact valid representation.
 - **Validation** with precise error reporting: human-readable message plus `Line, Col` derived from the parser position, and a code-frame pointing at the failure with a caret.
 - **Syntax highlighting** — tokenized keys, strings, numbers, booleans, null, braces and punctuation, themed via the shared design tokens. All values are HTML-escaped before rendering.
+- **Find in output** — a search box above the output pane highlights every case-insensitive match live, with a match counter and <kbd>Enter</kbd> / <kbd>Shift+Enter</kbd> to jump between hits.
 - **Sort keys** toggle — recursively sorts object keys alphabetically (arrays keep their order).
 - **Stats bar** — byte size, key count, value count, max nesting depth, and root type.
 - **Copy**, **Download `.json`**, and **Upload `.json`** (auto-formats on load).
@@ -42,6 +43,7 @@ Then simply open `index.html` in any modern browser (double-click it, or `file:/
 3. Choose your **Indent** (2 spaces / 4 spaces / tabs) and optionally flip **Sort keys** — output re-formats instantly.
 4. If the JSON is invalid, read the error panel: it shows the message, the exact **Line, Col**, and a code-frame caret.
 5. **Copy** the result or **Download** it as a `.json` file. The stats bar summarizes size, keys, values, depth, and root type.
+6. Use the **Find in output** box to locate a key or value in a large document — matches are highlighted live; press <kbd>Enter</kbd> (or <kbd>Shift+Enter</kbd>) to cycle through them.
 
 ## Keyboard Shortcuts
 
