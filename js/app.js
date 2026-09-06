@@ -36,12 +36,20 @@
 
   var fileInput = document.getElementById('fileInput');
 
+  var searchInput = document.getElementById('searchInput');
+  var searchCount = document.getElementById('searchCount');
+
   /* The most recently produced output string (for copy / download). */
   var lastOutput = '';
   /* Which action last produced lastOutput ('beautify' | 'minify'), so that
      changing Indent/Sort-keys re-applies the same mode instead of always
      jumping back to the pretty-printed view. */
   var lastMode = 'beautify';
+
+  /* --------------------------- Output search -------------------------- */
+  var currentQuery = '';
+  var searchMatches = [];
+  var searchIndex = -1;
 
   /* =================================================================
      INDENT helpers
@@ -185,7 +193,29 @@
      Tokenize a *valid* formatted JSON string into classed spans.
      All text is escaped before insertion (no raw innerHTML of values).
      ================================================================= */
-  function highlight(jsonText) {
+
+  /* Escape text for HTML, wrapping case-insensitive occurrences of `query`
+     in <mark class="search-hit">. Matching is done on the raw text (not
+     the escaped output) so it works correctly against text containing
+     HTML-special characters. With no query this is identical to plain
+     WUS.escapeHtml(text). */
+  function escapeAndMark(text, query) {
+    if (!query) return WUS.escapeHtml(text);
+    var lower = text.toLowerCase();
+    var q = query.toLowerCase();
+    var out = '';
+    var i = 0;
+    var idx;
+    while ((idx = lower.indexOf(q, i)) !== -1) {
+      out += WUS.escapeHtml(text.slice(i, idx));
+      out += '<mark class="search-hit">' + WUS.escapeHtml(text.slice(idx, idx + query.length)) + '</mark>';
+      i = idx + query.length;
+    }
+    out += WUS.escapeHtml(text.slice(i));
+    return out;
+  }
+
+  function highlight(jsonText, query) {
     // Token regex covers: strings (with key detection via trailing colon),
     // numbers, booleans, null, and structural punctuation.
     var re = /("(?:\\.|[^"\\])*")(\s*:)?|\b(true|false)\b|\b(null)\b|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|([{}\[\],:])/g;
@@ -197,7 +227,7 @@
     while ((m = re.exec(jsonText)) !== null) {
       // Emit any plain text (whitespace) between tokens, escaped.
       if (m.index > lastIndex) {
-        out += WUS.escapeHtml(jsonText.slice(lastIndex, m.index));
+        out += escapeAndMark(jsonText.slice(lastIndex, m.index), query);
       }
       lastIndex = re.lastIndex;
 
@@ -205,22 +235,22 @@
         // String — key if followed by a colon.
         var isKey = m[2] !== undefined;
         out += '<span class="' + (isKey ? 'tok-key' : 'tok-string') + '">' +
-               WUS.escapeHtml(m[1]) + '</span>';
+               escapeAndMark(m[1], query) + '</span>';
         if (isKey) out += '<span class="tok-punct">' + WUS.escapeHtml(m[2]) + '</span>';
       } else if (m[3] !== undefined) {
-        out += '<span class="tok-boolean">' + m[3] + '</span>';
+        out += '<span class="tok-boolean">' + escapeAndMark(m[3], query) + '</span>';
       } else if (m[4] !== undefined) {
-        out += '<span class="tok-null">' + m[4] + '</span>';
+        out += '<span class="tok-null">' + escapeAndMark(m[4], query) + '</span>';
       } else if (m[5] !== undefined) {
-        out += '<span class="tok-number">' + WUS.escapeHtml(m[5]) + '</span>';
+        out += '<span class="tok-number">' + escapeAndMark(m[5], query) + '</span>';
       } else if (m[6] !== undefined) {
         var cls = (m[6] === '{' || m[6] === '}' || m[6] === '[' || m[6] === ']') ? 'tok-brace' : 'tok-punct';
-        out += '<span class="' + cls + '">' + WUS.escapeHtml(m[6]) + '</span>';
+        out += '<span class="' + cls + '">' + escapeAndMark(m[6], query) + '</span>';
       }
     }
     // Tail.
     if (lastIndex < jsonText.length) {
-      out += WUS.escapeHtml(jsonText.slice(lastIndex));
+      out += escapeAndMark(jsonText.slice(lastIndex), query);
     }
     return out;
   }
@@ -261,7 +291,7 @@
 
   function renderOutput(jsonText, parsedValue) {
     lastOutput = jsonText;
-    outputCode.innerHTML = highlight(jsonText);
+    outputCode.innerHTML = highlight(jsonText, currentQuery);
     emptyState.classList.add('is-hidden');
 
     // Output meta + stats.
@@ -275,6 +305,8 @@
     statDepth.textContent = s.maxDepth;
     statType.textContent  = s.type;
     statsBar.hidden = false;
+
+    refreshSearchMatches();
   }
 
   function clearOutput() {
@@ -283,6 +315,48 @@
     emptyState.classList.remove('is-hidden');
     outputStats.textContent = '';
     statsBar.hidden = true;
+    refreshSearchMatches();
+  }
+
+  /* =================================================================
+     OUTPUT SEARCH — find & cycle through matches in the rendered output
+     ================================================================= */
+  function refreshSearchMatches() {
+    searchMatches = Array.prototype.slice.call(outputCode.querySelectorAll('mark.search-hit'));
+    searchIndex = searchMatches.length ? 0 : -1;
+    updateActiveMatch();
+    updateSearchCount();
+  }
+
+  function updateActiveMatch() {
+    searchMatches.forEach(function (el, i) {
+      el.classList.toggle('is-active', i === searchIndex);
+    });
+    if (searchIndex > -1) {
+      searchMatches[searchIndex].scrollIntoView({ block: 'center' });
+    }
+  }
+
+  function updateSearchCount() {
+    if (!currentQuery) { searchCount.textContent = ''; return; }
+    searchCount.textContent = searchMatches.length ? (searchIndex + 1) + ' / ' + searchMatches.length : 'No matches';
+  }
+
+  function gotoMatch(delta) {
+    if (!searchMatches.length) return;
+    searchIndex = (searchIndex + delta + searchMatches.length) % searchMatches.length;
+    updateActiveMatch();
+    updateSearchCount();
+  }
+
+  function runSearch() {
+    currentQuery = searchInput.value;
+    if (lastOutput) {
+      outputCode.innerHTML = highlight(lastOutput, currentQuery);
+      refreshSearchMatches();
+    } else {
+      updateSearchCount();
+    }
   }
 
   function updateInputMeta() {
@@ -393,6 +467,9 @@
     setStatus('', 'Ready');
     updateInputMeta();
     WUS.store.remove(STORE_KEY);
+    currentQuery = '';
+    searchInput.value = '';
+    updateSearchCount();
     input.focus();
   }
 
@@ -527,6 +604,14 @@
   input.addEventListener('input', function () {
     updateInputMeta();
     persistDebounced();
+  });
+
+  searchInput.addEventListener('input', runSearch);
+  searchInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      gotoMatch(e.shiftKey ? -1 : 1);
+    }
   });
 
   // Re-format live when settings change (only if there is valid output).

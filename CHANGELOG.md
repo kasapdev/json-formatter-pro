@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- **Find in output** — a search box above the output pane that highlights every case-insensitive match (in keys, strings, numbers, booleans and null) directly in the syntax-highlighted view, with a `current / total` counter and <kbd>Enter</kbd> / <kbd>Shift+Enter</kbd> to jump between matches. A step toward the "JSONPath / key search and filtering" roadmap item.
+
 ## [1.0.1] - 2026-09-06
 
 ### Fixed
