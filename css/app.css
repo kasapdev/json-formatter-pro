@@ -256,6 +256,162 @@ mark.search-hit.is-active {
 .shortcut-table td:last-child { text-align: right; white-space: nowrap; }
 .shortcut-table kbd + kbd { margin-left: 4px; }
 
+/* ===================== Tools toolbar row (View / Compare / Convert / Schema) ===================== */
+.toolbar--tools { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--border); }
+.field-inline-label { font-size: 13px; font-weight: 600; white-space: nowrap; }
+
+/* ===================== JSONPath bar ===================== */
+.jsonpath-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--border);
+}
+.jsonpath-icon { width: 16px; height: 16px; color: var(--text-muted); flex: none; }
+.jsonpath-bar input[type=text] {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  font-size: 12.5px;
+}
+.jsonpath-error {
+  margin: 0;
+  padding: var(--space-2) var(--space-5);
+  color: var(--danger);
+  font-size: 12.5px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ===================== Tree view ===================== */
+.tree-view {
+  margin: 0;
+  padding: var(--space-4) var(--space-5);
+  font-size: 13.5px;
+  line-height: 1.7;
+  min-height: 100%;
+}
+.tree-view:focus-visible { outline: none; }
+.tv-node { position: relative; }
+.tv-children { margin-left: 18px; border-left: 1px dashed var(--border); padding-left: 2px; }
+.tv-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 1px 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  flex-wrap: wrap;
+}
+.tv-row:hover { background: var(--surface-2); }
+.tv-row:focus-visible { outline: 2px solid var(--brand-500); outline-offset: -1px; }
+.tv-toggle {
+  display: inline-flex;
+  width: 14px;
+  flex: none;
+  color: var(--text-muted);
+  font-size: 10px;
+  user-select: none;
+}
+.tv-toggle--leaf { visibility: hidden; }
+.tv-key { color: var(--brand-400); font-weight: 600; }
+[data-theme="light"] .tv-key { color: var(--brand-600); }
+.tv-hint { color: var(--text-muted); font-size: 12px; font-style: italic; }
+.tv-value { cursor: pointer; border-radius: 4px; padding: 0 2px; }
+.tv-value:hover { background: var(--surface-3); }
+.tv-value:focus-visible { outline: 2px solid var(--brand-500); outline-offset: 1px; }
+.tv-more {
+  display: block;
+  margin: 2px 0 2px 20px;
+  padding: 4px 10px;
+  font: 600 12px var(--font-sans);
+  color: var(--brand-400);
+  background: transparent;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.tv-more:hover { background: var(--surface-2); }
+
+/* JSONPath match highlighting — shared by text output spans + tree rows */
+[data-path].jp-hit { background: var(--info-soft); border-radius: 3px; }
+[data-path].jp-hit.jp-hit-active,
+.tv-row.jp-hit-active { background: var(--warning-soft); box-shadow: 0 0 0 1px var(--warning) inset; }
+.tv-row.jp-hit-active .tv-key { color: var(--warning); }
+
+/* ===================== Tool panels (Compare / Convert / Schema) ===================== */
+.tool-panel { margin-top: var(--space-5); }
+.tool-panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-2); }
+.tool-panel-head h3 { margin: 0; font-size: 16px; }
+.tool-panel-desc { margin: 0 0 var(--space-4); font-size: 13px; }
+
+.diff-inputs, .convert-io {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+.diff-inputs textarea, .convert-io textarea {
+  width: 100%;
+  min-height: 160px;
+  font-size: 13px;
+  line-height: 1.6;
+  resize: vertical;
+}
+.convert-io textarea[readonly] { background: var(--surface-3); }
+
+.convert-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.convert-controls .field-inline select { min-width: 150px; }
+
+.tool-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+.tool-panel-actions .spacer { flex: 1; }
+
+.diff-summary { font-size: 13px; font-weight: 600; }
+.diff-summary.is-same { color: var(--success); }
+.diff-summary.is-error { color: var(--danger); }
+
+.tool-results { display: flex; flex-direction: column; gap: 4px; max-height: 420px; overflow-y: auto; }
+.diff-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  font-size: 12.5px;
+}
+.diff-badge {
+  flex: none;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.diff-path { color: var(--text-secondary); flex: none; }
+.diff-values { color: var(--text); word-break: break-word; }
+
+.diff-added { background: var(--success-soft); border-color: transparent; }
+.diff-added .diff-badge { background: var(--success); color: var(--text-inverse); }
+.diff-removed { background: var(--danger-soft); border-color: transparent; }
+.diff-removed .diff-badge { background: var(--danger); color: var(--text-inverse); }
+.diff-changed { background: var(--warning-soft); border-color: transparent; }
+.diff-changed .diff-badge { background: var(--warning); color: var(--text-inverse); }
+
 /* ===================== Responsive ===================== */
 @media (max-width: 860px) {
   .editor { grid-template-columns: 1fr; }
@@ -271,6 +427,7 @@ mark.search-hit.is-active {
   .toolbar-group .btn { flex: 1; }
   .field-inline { width: 100%; }
   .field-inline select { flex: 1; }
+  .diff-inputs, .convert-io { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 460px) {
@@ -278,4 +435,11 @@ mark.search-hit.is-active {
   .stat { text-align: left; }
   .pane--output .pane-head { flex-wrap: wrap; }
   .output-search { order: 3; flex-basis: 100%; max-width: none; }
+  .jsonpath-bar { flex-wrap: wrap; }
+  .jsonpath-bar input[type=text] { flex-basis: 100%; order: 1; }
+  .jsonpath-icon { order: 0; }
+  .search-count { order: 2; }
+  .convert-controls { flex-direction: column; align-items: stretch; }
+  .convert-controls .field-inline select { width: 100%; }
+  .diff-row { flex-direction: column; align-items: flex-start; gap: 4px; }
 }

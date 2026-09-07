@@ -108,6 +108,31 @@
           </button>
         </div>
       </div>
+
+      <div class="toolbar toolbar--tools">
+        <div class="toolbar-group">
+          <span class="field-inline-label muted" id="viewModeLabel">View</span>
+          <div class="segmented" role="tablist" aria-labelledby="viewModeLabel">
+            <button id="btnViewText" type="button" role="tab" aria-selected="true">Text</button>
+            <button id="btnViewTree" type="button" role="tab" aria-selected="false">Tree</button>
+          </div>
+        </div>
+        <span class="spacer hide-sm"></span>
+        <div class="toolbar-group">
+          <button id="btnDiffToggle" class="btn btn--sm" aria-expanded="false" aria-controls="diffPanel" title="Compare two JSON documents">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3v18M16 3v18M3 8h5M16 8h5M3 16h5M16 16h5"/></svg>
+            Compare
+          </button>
+          <button id="btnConvertToggle" class="btn btn--sm" aria-expanded="false" aria-controls="convertPanel" title="Convert JSON to/from YAML or CSV">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            Convert
+          </button>
+          <button id="btnSchemaToggle" class="btn btn--sm" aria-expanded="false" aria-controls="schemaPanel" title="Validate against a JSON Schema">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 12l2 2 4-4M12 3l7 4v5c0 4.4-3 8.4-7 9-4-.6-7-4.6-7-9V7z"/></svg>
+            Schema
+          </button>
+        </div>
+      </div>
     </section>
 
     <!-- Two-pane editor -->
@@ -134,8 +159,23 @@
           <span id="outputStats" class="muted pane-meta mono"></span>
         </div>
 
+        <div class="jsonpath-bar" role="search">
+          <label for="jsonpathInput" class="sr-only">JSONPath expression</label>
+          <svg class="jsonpath-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="text" id="jsonpathInput" class="mono" placeholder="JSONPath — $.a.b, $.arr[*].field, $..deepkey" autocomplete="off" spellcheck="false" aria-label="JSONPath expression">
+          <span id="jsonpathCount" class="muted mono search-count" aria-live="polite"></span>
+          <button id="jsonpathPrev" class="btn btn--icon btn--sm" title="Previous match (Shift+Enter)" aria-label="Previous JSONPath match">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 15l-6-6-6 6"/></svg>
+          </button>
+          <button id="jsonpathNext" class="btn btn--icon btn--sm" title="Next match (Enter)" aria-label="Next JSONPath match">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+        </div>
+        <p id="jsonpathError" class="jsonpath-error mono" hidden></p>
+
         <div class="output-scroll">
           <pre id="output" class="output-code mono" aria-live="polite" tabindex="0"><code id="outputCode"></code></pre>
+          <div id="treeView" class="tree-view mono" hidden tabindex="0" aria-label="JSON tree view"></div>
 
           <!-- Empty state -->
           <div id="emptyState" class="empty output-empty">
@@ -184,6 +224,92 @@
         <span id="statType" class="stat-value">—</span>
       </div>
     </section>
+
+    <!-- Diff / Compare panel -->
+    <section id="diffPanel" class="panel tool-panel fade-in" aria-label="Compare two JSON documents" hidden>
+      <div class="tool-panel-head">
+        <h3>Compare JSON documents</h3>
+        <button id="diffClose" class="btn btn--icon btn--ghost" aria-label="Close compare panel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <p class="muted tool-panel-desc">Structural diff — added, removed and changed values, by JSON pointer path. Object key order is ignored; array order matters.</p>
+      <div class="diff-inputs">
+        <div class="field">
+          <label for="diffA">Document A</label>
+          <textarea id="diffA" class="mono" spellcheck="false" autocomplete="off" placeholder="Paste JSON A…"></textarea>
+        </div>
+        <div class="field">
+          <label for="diffB">Document B</label>
+          <textarea id="diffB" class="mono" spellcheck="false" autocomplete="off" placeholder="Paste JSON B…"></textarea>
+        </div>
+      </div>
+      <div class="tool-panel-actions">
+        <button id="btnDiffRun" class="btn btn--primary btn--sm" title="Compare (Ctrl/Cmd+Enter)">Compare</button>
+        <span id="diffSummary" class="diff-summary muted"></span>
+      </div>
+      <div id="diffResults" class="tool-results mono"></div>
+    </section>
+
+    <!-- Convert panel -->
+    <section id="convertPanel" class="panel tool-panel fade-in" aria-label="Convert JSON to or from YAML or CSV" hidden>
+      <div class="tool-panel-head">
+        <h3>Convert</h3>
+        <button id="convertClose" class="btn btn--icon btn--ghost" aria-label="Close convert panel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <p class="muted tool-panel-desc">Hand-written, zero-dependency converters. See the README for the exact supported YAML/CSV subset.</p>
+      <div class="convert-controls">
+        <div class="field-inline">
+          <label for="convertDirection">Direction</label>
+          <select id="convertDirection" aria-label="Conversion direction">
+            <option value="json2yaml">JSON → YAML</option>
+            <option value="yaml2json">YAML → JSON</option>
+            <option value="json2csv">JSON → CSV</option>
+            <option value="csv2json">CSV → JSON</option>
+          </select>
+        </div>
+        <button id="btnConvertUseInput" class="btn btn--sm btn--ghost" title="Copy the main Input pane into the source box">Use current Input</button>
+        <button id="btnConvertRun" class="btn btn--primary btn--sm" title="Convert (Ctrl/Cmd+Enter)">Convert</button>
+      </div>
+      <div class="convert-io">
+        <div class="field">
+          <label for="convertSource">Source</label>
+          <textarea id="convertSource" class="mono" spellcheck="false" autocomplete="off" placeholder="Paste source data…"></textarea>
+        </div>
+        <div class="field">
+          <label for="convertOutput">Result</label>
+          <textarea id="convertOutput" class="mono" spellcheck="false" autocomplete="off" readonly placeholder="Converted output appears here…"></textarea>
+        </div>
+      </div>
+      <div class="tool-panel-actions">
+        <span id="convertSummary" class="diff-summary muted"></span>
+        <span class="spacer"></span>
+        <button id="btnConvertCopy" class="btn btn--sm">Copy result</button>
+        <button id="btnConvertDownload" class="btn btn--sm">Download</button>
+      </div>
+    </section>
+
+    <!-- Schema validation panel -->
+    <section id="schemaPanel" class="panel tool-panel fade-in" aria-label="Validate against a JSON Schema" hidden>
+      <div class="tool-panel-head">
+        <h3>Schema validation</h3>
+        <button id="schemaClose" class="btn btn--icon btn--ghost" aria-label="Close schema panel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <p class="muted tool-panel-desc">Validates the main Input document against a pasted JSON Schema (Draft-7-ish subset — see README). Every violation is listed with its JSON Pointer path.</p>
+      <div class="field">
+        <label for="schemaInput">JSON Schema</label>
+        <textarea id="schemaInput" class="mono" spellcheck="false" autocomplete="off" placeholder='{"type":"object","required":["name"],"properties":{"name":{"type":"string"}}}'></textarea>
+      </div>
+      <div class="tool-panel-actions">
+        <button id="btnSchemaRun" class="btn btn--primary btn--sm" title="Validate (Ctrl/Cmd+Enter)">Validate</button>
+        <span id="schemaSummary" class="diff-summary muted"></span>
+      </div>
+      <div id="schemaResults" class="tool-results mono"></div>
+    </section>
   </main>
 
   <footer class="app-footer container">
@@ -207,6 +333,11 @@
   </div>
 
   <script src="assets/js/core.js"></script>
+  <script src="js/jsonpath.js"></script>
+  <script src="js/treeview.js"></script>
+  <script src="js/convert.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/diff.js"></script>
+  <script src="js/schema.js"></script>
 </body>
 </html>

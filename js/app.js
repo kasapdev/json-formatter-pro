@@ -39,17 +39,39 @@
   var searchInput = document.getElementById('searchInput');
   var searchCount = document.getElementById('searchCount');
 
+  var outputPre   = document.getElementById('output');
+  var treeView    = document.getElementById('treeView');
+  var btnViewText = document.getElementById('btnViewText');
+  var btnViewTree = document.getElementById('btnViewTree');
+
+  var jsonpathInput = document.getElementById('jsonpathInput');
+  var jsonpathCount = document.getElementById('jsonpathCount');
+  var jsonpathPrevBtn = document.getElementById('jsonpathPrev');
+  var jsonpathNextBtn = document.getElementById('jsonpathNext');
+  var jsonpathErrorEl = document.getElementById('jsonpathError');
+
   /* The most recently produced output string (for copy / download). */
   var lastOutput = '';
   /* Which action last produced lastOutput ('beautify' | 'minify'), so that
      changing Indent/Sort-keys re-applies the same mode instead of always
      jumping back to the pretty-printed view. */
   var lastMode = 'beautify';
+  /* The parsed value behind the current output — feeds the tree view and
+     the JSONPath evaluator. Undefined until the first successful render. */
+  var currentValue;
+  /* 'text' | 'tree' */
+  var viewMode = 'text';
 
   /* --------------------------- Output search -------------------------- */
   var currentQuery = '';
   var searchMatches = [];
   var searchIndex = -1;
+
+  /* -------------------------- JSONPath search -------------------------- */
+  var jsonpathQuery = '';
+  var jsonpathMatches = [];
+  var jsonpathIndex = -1;
+  var treeActiveRow = null;
 
   /* =================================================================
      INDENT helpers
@@ -215,40 +237,96 @@
     return out;
   }
 
-  function highlight(jsonText, query) {
-    // Token regex covers: strings (with key detection via trailing colon),
-    // numbers, booleans, null, and structural punctuation.
+  /* Build the class + data-path attribute string for one value token, given
+     its canonical JSONPath (see jsonpath.js). `jpPathSet` is a {path:true}
+     map of every current JSONPath match; `jpActivePath` is the path of the
+     currently-focused match (both may be null/undefined when no JSONPath
+     search is active). */
+  function pathAttrs(path, jpPathSet, jpActivePath) {
+    if (!path) return { cls: '', attr: '' };
+    var cls = '';
+    if (jpPathSet && jpPathSet[path]) cls += ' jp-hit';
+    if (jpActivePath && path === jpActivePath) cls += ' jp-hit-active';
+    return { cls: cls, attr: ' data-path="' + WUS.escapeHtml(path) + '"' };
+  }
+
+  function makeSpan(baseClass, innerHtml, path, jpPathSet, jpActivePath) {
+    var extra = pathAttrs(path, jpPathSet, jpActivePath);
+    return '<span class="' + baseClass + extra.cls + '"' + extra.attr + '>' + innerHtml + '</span>';
+  }
+
+  /* Tokenize a *valid* formatted JSON string into classed spans, tracking
+     the structural (JSONPath) path of every value as it goes so each
+     value-bearing span can carry a `data-path` attribute. That attribute
+     is what lets the JSONPath search (feature 1) highlight/scroll to a
+     match, and what keeps the canonical path format identical between the
+     text view and jsonpath.js's evaluator output. */
+  function highlight(jsonText, query, jpPathSet, jpActivePath) {
     var re = /("(?:\\.|[^"\\])*")(\s*:)?|\b(true|false)\b|\b(null)\b|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|([{}\[\],:])/g;
+    var JP = window.JSONPathTool;
 
     var out = '';
     var lastIndex = 0;
     var m;
+    var stack = []; // { type: 'obj'|'arr', path, pendingKey, arrIndex }
+
+    function top() { return stack.length ? stack[stack.length - 1] : null; }
+    function valuePath() {
+      var f = top();
+      if (!f) return '$';
+      return f.type === 'obj' ? f.path + JP.accessorFor(f.pendingKey) : f.path + JP.formatIndex(f.arrIndex);
+    }
+    function consume() {
+      var f = top();
+      if (!f) return;
+      if (f.type === 'obj') f.pendingKey = null; else f.arrIndex++;
+    }
 
     while ((m = re.exec(jsonText)) !== null) {
-      // Emit any plain text (whitespace) between tokens, escaped.
-      if (m.index > lastIndex) {
-        out += escapeAndMark(jsonText.slice(lastIndex, m.index), query);
-      }
+      if (m.index > lastIndex) out += escapeAndMark(jsonText.slice(lastIndex, m.index), query);
       lastIndex = re.lastIndex;
 
       if (m[1] !== undefined) {
-        // String — key if followed by a colon.
         var isKey = m[2] !== undefined;
-        out += '<span class="' + (isKey ? 'tok-key' : 'tok-string') + '">' +
-               escapeAndMark(m[1], query) + '</span>';
-        if (isKey) out += '<span class="tok-punct">' + WUS.escapeHtml(m[2]) + '</span>';
+        if (isKey) {
+          var f1 = top();
+          var keyName = JSON.parse(m[1]);
+          var kpath = f1 ? f1.path + JP.accessorFor(keyName) : '$';
+          if (f1) f1.pendingKey = keyName;
+          out += makeSpan('tok-key', escapeAndMark(m[1], query), kpath, jpPathSet, jpActivePath);
+          out += '<span class="tok-punct">' + WUS.escapeHtml(m[2]) + '</span>';
+        } else {
+          out += makeSpan('tok-string', escapeAndMark(m[1], query), valuePath(), jpPathSet, jpActivePath);
+          consume();
+        }
       } else if (m[3] !== undefined) {
-        out += '<span class="tok-boolean">' + escapeAndMark(m[3], query) + '</span>';
+        out += makeSpan('tok-boolean', escapeAndMark(m[3], query), valuePath(), jpPathSet, jpActivePath);
+        consume();
       } else if (m[4] !== undefined) {
-        out += '<span class="tok-null">' + escapeAndMark(m[4], query) + '</span>';
+        out += makeSpan('tok-null', escapeAndMark(m[4], query), valuePath(), jpPathSet, jpActivePath);
+        consume();
       } else if (m[5] !== undefined) {
-        out += '<span class="tok-number">' + escapeAndMark(m[5], query) + '</span>';
+        out += makeSpan('tok-number', escapeAndMark(m[5], query), valuePath(), jpPathSet, jpActivePath);
+        consume();
       } else if (m[6] !== undefined) {
-        var cls = (m[6] === '{' || m[6] === '}' || m[6] === '[' || m[6] === ']') ? 'tok-brace' : 'tok-punct';
-        out += '<span class="' + cls + '">' + escapeAndMark(m[6], query) + '</span>';
+        var ch = m[6];
+        if (ch === '{' || ch === '[') {
+          var parent = top();
+          var isObjMember = !!(parent && parent.type === 'obj'); // already tagged via its key span
+          var path6 = valuePath();
+          out += isObjMember
+            ? '<span class="tok-brace">' + WUS.escapeHtml(ch) + '</span>'
+            : makeSpan('tok-brace', WUS.escapeHtml(ch), path6, jpPathSet, jpActivePath);
+          stack.push({ type: ch === '{' ? 'obj' : 'arr', path: path6, pendingKey: null, arrIndex: 0 });
+        } else if (ch === '}' || ch === ']') {
+          out += '<span class="tok-brace">' + WUS.escapeHtml(ch) + '</span>';
+          stack.pop();
+          consume();
+        } else {
+          out += '<span class="tok-punct">' + WUS.escapeHtml(ch) + '</span>';
+        }
       }
     }
-    // Tail.
     if (lastIndex < jsonText.length) {
       out += escapeAndMark(jsonText.slice(lastIndex), query);
     }
@@ -289,9 +367,24 @@
     errorPanel.hidden = true;
   }
 
+  /* Re-paint the highlighted output from `lastOutput`, applying both the
+     plain-text find (currentQuery) and the JSONPath match set/active path.
+     The single choke point for anything that touches outputCode.innerHTML,
+     so the two search features never fight over it. */
+  function paintOutput() {
+    var pathSet = null;
+    if (jsonpathMatches.length) {
+      pathSet = {};
+      for (var i = 0; i < jsonpathMatches.length; i++) pathSet[jsonpathMatches[i].path] = true;
+    }
+    var activePath = jsonpathIndex > -1 ? jsonpathMatches[jsonpathIndex].path : null;
+    outputCode.innerHTML = highlight(lastOutput, currentQuery, pathSet, activePath);
+    refreshSearchMatches();
+  }
+
   function renderOutput(jsonText, parsedValue) {
     lastOutput = jsonText;
-    outputCode.innerHTML = highlight(jsonText, currentQuery);
+    currentValue = parsedValue;
     emptyState.classList.add('is-hidden');
 
     // Output meta + stats.
@@ -306,12 +399,18 @@
     statType.textContent  = s.type;
     statsBar.hidden = false;
 
-    refreshSearchMatches();
+    recomputeJsonpath();
+    paintOutput();
+    renderTreeView();
+    if (jsonpathIndex > -1) revealActiveJsonpathMatch();
   }
 
   function clearOutput() {
     lastOutput = '';
+    currentValue = undefined;
     outputCode.textContent = '';
+    treeView.innerHTML = '';
+    treeActiveRow = null;
     emptyState.classList.remove('is-hidden');
     outputStats.textContent = '';
     statsBar.hidden = true;
@@ -351,12 +450,90 @@
 
   function runSearch() {
     currentQuery = searchInput.value;
-    if (lastOutput) {
-      outputCode.innerHTML = highlight(lastOutput, currentQuery);
-      refreshSearchMatches();
-    } else {
-      updateSearchCount();
+    if (lastOutput) paintOutput();
+    else updateSearchCount();
+  }
+
+  /* =================================================================
+     JSONPATH SEARCH — feature 1: evaluate a JSONPath-subset expression
+     against the current document and highlight/scroll to every match,
+     in whichever view (Text or Tree) is currently active.
+     ================================================================= */
+  function updateJsonpathCount() {
+    if (!jsonpathQuery || !jsonpathErrorEl.hidden) { jsonpathCount.textContent = ''; return; }
+    jsonpathCount.textContent = jsonpathMatches.length ? (jsonpathIndex + 1) + ' / ' + jsonpathMatches.length : 'No matches';
+  }
+
+  function recomputeJsonpath() {
+    jsonpathErrorEl.hidden = true;
+    if (!jsonpathQuery || currentValue === undefined) {
+      jsonpathMatches = []; jsonpathIndex = -1;
+      updateJsonpathCount();
+      return;
     }
+    var result = window.JSONPathTool.evaluate(currentValue, jsonpathQuery);
+    if (!result.ok) {
+      jsonpathMatches = []; jsonpathIndex = -1;
+      jsonpathErrorEl.hidden = false;
+      jsonpathErrorEl.textContent = result.error;
+      updateJsonpathCount();
+      return;
+    }
+    jsonpathMatches = result.matches;
+    jsonpathIndex = jsonpathMatches.length ? 0 : -1;
+    updateJsonpathCount();
+  }
+
+  function revealActiveJsonpathMatch() {
+    if (treeActiveRow) { treeActiveRow.classList.remove('jp-hit-active'); treeActiveRow = null; }
+    if (jsonpathIndex === -1) return;
+    var path = jsonpathMatches[jsonpathIndex].path;
+    if (viewMode === 'tree') {
+      var row = window.TreeView.reveal(treeView, path);
+      if (row) {
+        row.classList.add('jp-hit-active');
+        row.scrollIntoView({ block: 'center' });
+        treeActiveRow = row;
+      }
+    } else {
+      var el = outputCode.querySelector('.jp-hit-active');
+      if (el) el.scrollIntoView({ block: 'center' });
+    }
+  }
+
+  function runJsonpathSearch() {
+    jsonpathQuery = jsonpathInput.value.trim();
+    recomputeJsonpath();
+    paintOutput();
+    revealActiveJsonpathMatch();
+  }
+
+  function gotoJsonpathMatch(delta) {
+    if (!jsonpathMatches.length) return;
+    jsonpathIndex = (jsonpathIndex + delta + jsonpathMatches.length) % jsonpathMatches.length;
+    updateJsonpathCount();
+    paintOutput();
+    revealActiveJsonpathMatch();
+  }
+
+  /* =================================================================
+     TREE VIEW — feature 2: collapsible tree-view inspector
+     ================================================================= */
+  function renderTreeView() {
+    if (currentValue === undefined) { treeView.innerHTML = ''; return; }
+    window.TreeView.render(treeView, currentValue);
+    treeActiveRow = null;
+  }
+
+  function setViewMode(mode) {
+    viewMode = mode;
+    var isTree = mode === 'tree';
+    outputPre.hidden = isTree;
+    treeView.hidden = !isTree;
+    btnViewText.setAttribute('aria-selected', String(!isTree));
+    btnViewTree.setAttribute('aria-selected', String(isTree));
+    if (isTree && !treeView.firstChild) renderTreeView();
+    if (jsonpathIndex > -1) revealActiveJsonpathMatch();
   }
 
   function updateInputMeta() {
@@ -470,6 +647,12 @@
     currentQuery = '';
     searchInput.value = '';
     updateSearchCount();
+    jsonpathInput.value = '';
+    jsonpathQuery = '';
+    jsonpathMatches = [];
+    jsonpathIndex = -1;
+    jsonpathErrorEl.hidden = true;
+    updateJsonpathCount();
     input.focus();
   }
 
@@ -614,6 +797,21 @@
     }
   });
 
+  // View mode: Text <-> Tree.
+  btnViewText.addEventListener('click', function () { setViewMode('text'); });
+  btnViewTree.addEventListener('click', function () { setViewMode('tree'); });
+
+  // JSONPath search (feature 1).
+  jsonpathInput.addEventListener('input', runJsonpathSearch);
+  jsonpathInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      gotoJsonpathMatch(e.shiftKey ? -1 : 1);
+    }
+  });
+  jsonpathPrevBtn.addEventListener('click', function () { gotoJsonpathMatch(-1); });
+  jsonpathNextBtn.addEventListener('click', function () { gotoJsonpathMatch(1); });
+
   // Re-format live when settings change (only if there is valid output).
   // Re-apply whichever mode last produced the output, so toggling Sort keys
   // while viewing minified JSON doesn't silently switch to pretty-printed.
@@ -639,6 +837,19 @@
   WUS.registerShortcut('mod+m', function () { minify(); }, 'Minify JSON');
   WUS.registerShortcut('mod+s', function () { downloadOutput(); }, 'Download .json');
   WUS.registerShortcut('?', function () { openHelp(); }, 'Show shortcuts');
+
+  /* =================================================================
+     PUBLIC BRIDGE — read-only access for the Compare / Convert / Schema
+     panels (diff.js, convert.js, schema.js), which are self-contained
+     modules that only need the main Input pane's current text/value.
+     ================================================================= */
+  window.JFP = {
+    getRaw: function () { return input.value; },
+    getValue: function () {
+      try { return JSON.parse(input.value); }
+      catch (e) { return undefined; }
+    }
+  };
 
   /* =================================================================
      INIT
